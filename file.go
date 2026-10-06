@@ -226,3 +226,15 @@ func (f *utilFile) ExePath() string {
 	}
 	return exe
 }
+
+func (_self *utilFile) GetCurrentDir() string {
+
+	workPath, _ := os.Getwd()
+	return workPath
+}
+
+func (_self *utilFile) GetCurrentExe() string {
+
+	fullPath, _ := os.Executable()
+	return fullPath
+}
