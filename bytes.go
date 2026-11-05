@@ -201,3 +201,129 @@ func (b *utilBytes) ReadUtf16String(val []byte) string {
 	}
 	return string(runes[:end])
 }
+
+/* ---------------- 整体互转（对应 hutool ByteUtil，支持指定字节序） ---------------- */
+
+// Int16ToBytes int16 转定长 2 字节切片，bigEndian=false 时小端序（默认，与上面读写方法一致）。
+// 场景：协议字段整体序列化。
+func (b *utilBytes) Int16ToBytes(val int16, bigEndian bool) []byte {
+	bs := make([]byte, 2)
+	if bigEndian {
+		binary.BigEndian.PutUint16(bs, uint16(val))
+	} else {
+		binary.LittleEndian.PutUint16(bs, uint16(val))
+	}
+	return bs
+}
+
+// Int32ToBytes int32 转定长 4 字节切片。场景：IP 数值、整数序列化。
+func (b *utilBytes) Int32ToBytes(val int32, bigEndian bool) []byte {
+	bs := make([]byte, 4)
+	if bigEndian {
+		binary.BigEndian.PutUint32(bs, uint32(val))
+	} else {
+		binary.LittleEndian.PutUint32(bs, uint32(val))
+	}
+	return bs
+}
+
+// Int64ToBytes int64 转定长 8 字节切片。场景：时间戳/雪花 ID 序列化。
+func (b *utilBytes) Int64ToBytes(val int64, bigEndian bool) []byte {
+	bs := make([]byte, 8)
+	if bigEndian {
+		binary.BigEndian.PutUint64(bs, uint64(val))
+	} else {
+		binary.LittleEndian.PutUint64(bs, uint64(val))
+	}
+	return bs
+}
+
+// Float32ToBytes float32 转定长 4 字节切片。场景：浮点测量值序列化。
+func (b *utilBytes) Float32ToBytes(val float32, bigEndian bool) []byte {
+	bs := make([]byte, 4)
+	if bigEndian {
+		binary.BigEndian.PutUint32(bs, math.Float32bits(val))
+	} else {
+		binary.LittleEndian.PutUint32(bs, math.Float32bits(val))
+	}
+	return bs
+}
+
+// Float64ToBytes float64 转定长 8 字节切片。场景：双精度坐标序列化。
+func (b *utilBytes) Float64ToBytes(val float64, bigEndian bool) []byte {
+	bs := make([]byte, 8)
+	if bigEndian {
+		binary.BigEndian.PutUint64(bs, math.Float64bits(val))
+	} else {
+		binary.LittleEndian.PutUint64(bs, math.Float64bits(val))
+	}
+	return bs
+}
+
+// BytesToInt16 2 字节切片转 int16（长度须 >= 2）。场景：报文字段解码。
+func (b *utilBytes) BytesToInt16(val []byte, bigEndian bool) int16 {
+	if bigEndian {
+		return int16(binary.BigEndian.Uint16(val))
+	}
+	return int16(binary.LittleEndian.Uint16(val))
+}
+
+// BytesToInt32 4 字节切片转 int32（长度须 >= 4）。
+func (b *utilBytes) BytesToInt32(val []byte, bigEndian bool) int32 {
+	if bigEndian {
+		return int32(binary.BigEndian.Uint32(val))
+	}
+	return int32(binary.LittleEndian.Uint32(val))
+}
+
+// BytesToInt64 8 字节切片转 int64（长度须 >= 8）。
+func (b *utilBytes) BytesToInt64(val []byte, bigEndian bool) int64 {
+	if bigEndian {
+		return int64(binary.BigEndian.Uint64(val))
+	}
+	return int64(binary.LittleEndian.Uint64(val))
+}
+
+// BytesToFloat32 4 字节切片转 float32（长度须 >= 4）。
+func (b *utilBytes) BytesToFloat32(val []byte, bigEndian bool) float32 {
+	if bigEndian {
+		return math.Float32frombits(binary.BigEndian.Uint32(val))
+	}
+	return math.Float32frombits(binary.LittleEndian.Uint32(val))
+}
+
+// BytesToFloat64 8 字节切片转 float64（长度须 >= 8）。
+func (b *utilBytes) BytesToFloat64(val []byte, bigEndian bool) float64 {
+	return math.Float64frombits(uint64(b.BytesToInt64(val, bigEndian)))
+}
+
+// NumberToBytes 按类型分派序列化任意数值（hutool numberToBytes）：
+// 支持 int8/16/32/64、uint8/16/32/64、float32/64，其它类型返回 nil。
+// 场景：不知道具体宽度时的通用编码入口。
+func (b *utilBytes) NumberToBytes(val interface{}, bigEndian bool) []byte {
+	switch v := val.(type) {
+	case int8:
+		return []byte{byte(v)}
+	case uint8:
+		return []byte{v}
+	case int16:
+		return b.Int16ToBytes(v, bigEndian)
+	case uint16:
+		return b.Int16ToBytes(int16(v), bigEndian)
+	case int32:
+		return b.Int32ToBytes(v, bigEndian)
+	case uint32:
+		return b.Int32ToBytes(int32(v), bigEndian)
+	case int64:
+		return b.Int64ToBytes(v, bigEndian)
+	case uint64:
+		return b.Int64ToBytes(int64(v), bigEndian)
+	case int:
+		return b.Int64ToBytes(int64(v), bigEndian)
+	case float32:
+		return b.Float32ToBytes(v, bigEndian)
+	case float64:
+		return b.Float64ToBytes(v, bigEndian)
+	}
+	return nil
+}

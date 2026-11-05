@@ -1,5 +1,11 @@
 package utils
 
+import (
+	"fmt"
+	"math/rand/v2"
+	"strings"
+)
+
 // 集合（切片）操作：以包级泛型函数提供，直接通过 utils.IndexOf(...) 等方式调用。
 //
 // 说明：Go 语言不允许方法声明自己的类型参数，因此泛型集合函数无法挂在
@@ -149,6 +155,80 @@ func Difference[T comparable](a, b []T) []T {
 			seen[v] = struct{}{}
 			result = append(result, v)
 		}
+	}
+	return result
+}
+
+/* ---------------- 追加集合操作（对应 hutool CollUtil 常用方法） ---------------- */
+
+// Empty 切片是否为空（nil 或长度 0）。场景：接口返回集合字段判空。
+func Empty[T any](slice []T) bool {
+	return len(slice) == 0
+}
+
+// NotEmpty 切片是否非空。
+func NotEmpty[T any](slice []T) bool {
+	return len(slice) > 0
+}
+
+// Get 安全取值：下标越界时返回默认值 def（对应 hutool CollUtil.get(coll, i, default)）。
+// 场景：按序号取值但不想写 length 判断。
+func Get[T any](slice []T, index int, def T) T {
+	if index < 0 || index >= len(slice) {
+		return def
+	}
+	return slice[index]
+}
+
+// Join 拼接切片元素为字符串（对应 hutool CollUtil.join），元素用 fmt.Sprint 转换。
+// Join([]int{1,2,3}, "-") = "1-2-3"。场景：拼日志、拼 IN 条件（字符串切片用 String.Join 更快）。
+func Join[T any](slice []T, sep string) string {
+	var b strings.Builder
+	for i, v := range slice {
+		if i > 0 {
+			b.WriteString(sep)
+		}
+		b.WriteString(fmt.Sprint(v))
+	}
+	return b.String()
+}
+
+// Shuffle 原地随机打乱切片并返回自身（对应 hutool CollUtil.shuffle）。
+// 场景：抽奖、随机排序展示。
+func Shuffle[T any](slice []T) []T {
+	rand.Shuffle(len(slice), func(i, j int) {
+		slice[i], slice[j] = slice[j], slice[i]
+	})
+	return slice
+}
+
+// Sub 切片截取 [start, end)，自动收敛越界下标（对应 hutool CollUtil.sub）。
+// 场景：手动分页取片段。注意与 Chunk 的区别：Sub 按下标区间，Chunk 按每块大小。
+func Sub[T any](slice []T, start, end int) []T {
+	n := len(slice)
+	if start < 0 {
+		start = 0
+	}
+	if end > n {
+		end = n
+	}
+	if start >= end {
+		return nil
+	}
+	return slice[start:end]
+}
+
+// ZipToMap 把 keys 与 values 两个切片合成 map（对应 hutool CollUtil.zip），
+// 以较短的一方为准，键冲突时后面的覆盖前面的。
+// 场景：两列数据配对成映射。
+func ZipToMap[K comparable, V any](keys []K, values []V) map[K]V {
+	n := len(keys)
+	if len(values) < n {
+		n = len(values)
+	}
+	result := make(map[K]V, n)
+	for i := 0; i < n; i++ {
+		result[keys[i]] = values[i]
 	}
 	return result
 }

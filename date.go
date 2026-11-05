@@ -279,6 +279,69 @@ func (d *utilDate) EndOfMonth(t time.Time) time.Time {
 
 /* ---------------- 其它 ---------------- */
 
+// IsLeapYear 是否为闰年（能被 4 整除且不能被 100 整除，或能被 400 整除）。
+// IsLeapYear(2024) = true。场景：天数计算、日期合法性校验。
+func (d *utilDate) IsLeapYear(year int) bool {
+	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
+}
+
+// BeginOfWeek 返回所在周的起点（endMon=true 表示周一为一周第一天，否则周日）。
+// 场景：周报表的统计起始时间。
+func (d *utilDate) BeginOfWeek(t time.Time, endMon bool) time.Time {
+	offset := int(t.Weekday()) // 0 = 周日
+	if endMon {
+		if offset == 0 {
+			offset = 7
+		}
+		offset -= 1 // 周一为第一天时，周一偏移 0
+	}
+	day := t.AddDate(0, 0, -offset)
+	year, month, d2 := day.Date()
+	return time.Date(year, month, d2, 0, 0, 0, 0, t.Location())
+}
+
+// EndOfWeek 返回所在周的终点 23:59:59.999999999。场景：周活动截止时间。
+func (d *utilDate) EndOfWeek(t time.Time, endMon bool) time.Time {
+	begin := d.BeginOfWeek(t, endMon)
+	return begin.AddDate(0, 0, 7).Add(-time.Nanosecond)
+}
+
+// BeginOfQuarter 返回所在季度的第一天 0 点（季度：1-3、4-6、7-9、10-12）。
+// 场景：季度报表起始时间。
+func (d *utilDate) BeginOfQuarter(t time.Time) time.Time {
+	year, month, _ := t.Date()
+	quarterFirst := (int(month)-1)/3*3 + 1
+	return time.Date(year, time.Month(quarterFirst), 1, 0, 0, 0, 0, t.Location())
+}
+
+// EndOfQuarter 返回所在季度最后一天 23:59:59.999999999。场景：季度结算截止时间。
+func (d *utilDate) EndOfQuarter(t time.Time) time.Time {
+	begin := d.BeginOfQuarter(t)
+	return begin.AddDate(0, 3, 0).Add(-time.Nanosecond)
+}
+
+// Age 计算从生日到指定时间的周岁（compare 传零值 time.Time{} 时按当前时间）。
+// Age(1990-06-01, 2024-06-01) = 34，生日未到时按未满周岁计（虚岁不计）。
+// 场景：年龄计算（身份证、会员信息）。
+func (d *utilDate) Age(birth, compare time.Time) int {
+	if compare.IsZero() {
+		compare = time.Now()
+	}
+	if birth.After(compare) {
+		return 0
+	}
+	age := compare.Year() - birth.Year()
+	// 未到生日则减一
+	birthdayThisYear := time.Date(compare.Year(), birth.Month(), birth.Day(), 0, 0, 0, 0, compare.Location())
+	if compare.Before(birthdayThisYear) {
+		age--
+	}
+	if age < 0 {
+		age = 0
+	}
+	return age
+}
+
 // TimeCost 打印从 start 到现在的耗时，一行统计函数执行时间：
 //
 //	func handler() {

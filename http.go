@@ -2,11 +2,13 @@ package utils
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -179,4 +181,150 @@ func (h *utilHttp) UrlDecode(input string) string {
 		return input
 	}
 	return result
+}
+
+// httputilCharsetPattern 匹配 Content-Type 中 charset 值的正则（对照 hutool CHARSET_PATTERN）。
+var httputilCharsetPattern = regexp.MustCompile(`(?i)charset\s*=\s*([a-z0-9-]*)`)
+
+// GetForStr 发送 GET 请求（无自定义头、默认超时），成功(2xx)返回响应体字符串，失败返回空串。
+// 场景：快捷抓取文本接口返回值，不关心状态码细节（对应 hutool HttpUtil.get）。
+func (h *utilHttp) GetForStr(reqUrl string) string {
+	resp := h.do(http.MethodGet, reqUrl, nil, nil, 0)
+	if !resp.IsOK() {
+		return ""
+	}
+	return resp.BodyString()
+}
+
+// PostForStr 发送表单 POST 请求快捷方法，成功(2xx)返回响应体字符串，失败返回空串。
+// 场景：一行提交表单并取文本结果（对应 hutool HttpUtil.post(url, form)）。
+func (h *utilHttp) PostForStr(reqUrl string, form map[string]string) string {
+	resp := h.PostForm(reqUrl, form, nil, 0)
+	if !resp.IsOK() {
+		return ""
+	}
+	return resp.BodyString()
+}
+
+// DownloadBytes 发送 GET 请求并返回响应体字节，状态码非 2xx 时返回错误。
+// 场景：下载小文件到内存、抓取接口原始数据。
+func (h *utilHttp) DownloadBytes(reqUrl string) ([]byte, error) {
+	resp := h.do(http.MethodGet, reqUrl, nil, nil, 0)
+	if resp.Msg != "" {
+		return nil, fmt.Errorf("请求 %s 失败: %s", reqUrl, resp.Msg)
+	}
+	if !resp.IsOK() {
+		return nil, fmt.Errorf("请求 %s 失败，状态码 %d", reqUrl, resp.Status)
+	}
+	return resp.Body, nil
+}
+
+// BuildBasicAuth 构建 HTTP Basic 认证的 Authorization 头值。
+// BuildBasicAuth("admin", "123") = "Basic YWRtaW46MTIz"。场景：调用需要 Basic 认证的接口。
+func (h *utilHttp) BuildBasicAuth(username, password string) string {
+	data := username + ":" + password
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(data))
+}
+
+// BuildBearerAuth 构建 HTTP Bearer 认证的 Authorization 头值。
+// BuildBearerAuth("token123") = "Bearer token123"。场景：调用 OAuth2/JWT 风格接口。
+func (h *utilHttp) BuildBearerAuth(token string) string {
+	return "Bearer " + token
+}
+
+// IsHttp 判断 URL 是否以 http: 开头（忽略大小写）。
+// 场景：请求前校验协议合法性（对应 hutool isHttp）。
+func (h *utilHttp) IsHttp(reqUrl string) bool {
+	return strings.HasPrefix(strings.ToLower(reqUrl), "http:")
+}
+
+// IsHttps 判断 URL 是否以 https: 开头（忽略大小写）。
+// 场景：请求前校验是否走加密通道（对应 hutool isHttps）。
+func (h *utilHttp) IsHttps(reqUrl string) bool {
+	return strings.HasPrefix(strings.ToLower(reqUrl), "https:")
+}
+
+// ToParams 把 map 编码为 urlencoded 查询串（键按字典序排序保证稳定，值做 URL 编码）。
+// ToParams(map[string]string{"b":"2","a":"1"}) = "a=1&b=2"。场景：手工拼 GET 查询串。
+func (h *utilHttp) ToParams(form map[string]string) string {
+	if len(form) == 0 {
+		return ""
+	}
+	vals := url.Values{}
+	for k, v := range form {
+		vals.Set(k, v)
+	}
+	return vals.Encode()
+}
+
+// UrlWithForm 把表单参数拼接到 URL 上（url?a=1&b=2），url 已含 ? 时用 & 追加。
+// 场景：GET 表单提交、给已有 URL 附加查询参数（对应 hutool urlWithForm）。
+func (h *utilHttp) UrlWithForm(reqUrl string, form map[string]string) string {
+	params := h.ToParams(form)
+	if params == "" {
+		return reqUrl
+	}
+	if strings.Contains(reqUrl, "?") {
+		// 已带参数：末尾已有 & 则直接追加，否则补一个 &
+		if strings.HasSuffix(reqUrl, "&") {
+			return reqUrl + params
+		}
+		return reqUrl + "&" + params
+	}
+	return reqUrl + "?" + params
+}
+
+// DecodeParamMap 把查询串解析为 map（同键取最后值，键值自动 URL 解码）。
+// DecodeParamMap("a=1&b=2&a=3") = {"a":"3","b":"2"}。场景：解析回调地址的查询参数
+// （对应 hutool decodeParamMap）。
+func (h *utilHttp) DecodeParamMap(paramsStr string) map[string]string {
+	result := make(map[string]string)
+	if String.IsEmpty(paramsStr) {
+		return result
+	}
+	// 容错：允许传入带 ? 的完整查询串
+	paramsStr = strings.TrimPrefix(strings.TrimSpace(paramsStr), "?")
+	for _, pair := range strings.Split(paramsStr, "&") {
+		if pair == "" {
+			continue
+		}
+		key, value := pair, ""
+		if i := strings.Index(pair, "="); i >= 0 {
+			key, value = pair[:i], pair[i+1:]
+		}
+		result[h.UrlDecode(key)] = h.UrlDecode(value)
+	}
+	return result
+}
+
+// GetCharsetFromContentType 从 Content-Type 头值中提取 charset 参数值，无则返回空串。
+// GetCharsetFromContentType("text/html; charset=UTF-8") = "UTF-8"。
+// 场景：响应未指明编码时手动解析（对应 hutool getCharset）。
+func (h *utilHttp) GetCharsetFromContentType(contentType string) string {
+	if String.IsEmpty(contentType) {
+		return ""
+	}
+	m := httputilCharsetPattern.FindStringSubmatch(contentType)
+	if len(m) < 2 {
+		return ""
+	}
+	return m[1]
+}
+
+// SniffContentType 按请求体内容嗅探 Content-Type：以 { 或 [ 开头判定为 JSON，
+// 以 < 开头判定为 XML，否则按表单编码处理。场景：发送请求体前自动推断 Content-Type
+// （对照 hutool ContentType.get）。
+func (h *utilHttp) SniffContentType(body string) string {
+	trimmed := strings.TrimSpace(body)
+	if trimmed == "" {
+		return "application/x-www-form-urlencoded"
+	}
+	switch trimmed[0] {
+	case '{', '[':
+		return "application/json"
+	case '<':
+		return "application/xml"
+	default:
+		return "application/x-www-form-urlencoded"
+	}
 }
