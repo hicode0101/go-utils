@@ -2,15 +2,13 @@
 
 # go-utils
 
-**一个只依赖 Go 标准库的 Hutool 风格工具库 —— 34 个工具对象 · 800+ 方法 · 开箱即用**
+**一个只依赖 Go 标准库的 utils 工具库 —— 34 个工具对象 · 800+ 方法 · 开箱即用**
 
 [![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Coverage](https://img.shields.io/badge/Coverage-94.9%25-brightgreen)](#-测试)
 [![Tests](https://img.shields.io/badge/Tests-448%20passed-success)](#-测试)
 [![Dependencies](https://img.shields.io/badge/Dependencies-0-8A2BE2)](#-特性)
-[![Reference](https://img.shields.io/badge/参考-Hutool%205.8-orange)](https://hutool.cn)
 
-*命名与语义对照 [Hutool](https://hutool.cn) 5.8.x，Java 项目迁移 Go 时可无缝对照查阅*
 
 </div>
 
@@ -18,7 +16,7 @@
 
 ## 📖 简介
 
-`go-utils` 将 Hutool 最常用的工具能力（core / cron / crypto / http 四大模块）用纯 Go 标准库重新实现，保持「**单例对象 + 方法**」的调用习惯：
+`go-utils` 将最常用的工具能力（core / cron / crypto / http 四大模块）用纯 Go 标准库实现，保持「**单例对象 + 方法**」的调用习惯：
 
 ```go
 utils.String.ToInt("42")                  // 字符串工具
@@ -29,19 +27,17 @@ utils.Cron.Schedule("0 0 12 * * ?", job)  // 定时任务
 > **设计原则**
 >
 > - ✅ **零第三方依赖** —— 仅使用 Go 标准库，`go get` 即用，无供应链风险
-> - ✅ **命名对照 hutool** —— 方法语义与命名大体对照 hutool 5.8.x，迁移成本最低
 > - ✅ **统一返回值约定** —— `xxxE` 后缀返回 `error`（安全转换），不带后缀失败返回零值（便捷转换）
 > - ✅ **泛型化集合操作** —— 集合/随机选取等以包级泛型函数提供，类型安全无断言
-> - ✅ **全覆盖测试** —— 448 个测试函数、94.9% 语句覆盖率，关键算法经 RFC 向量与 hutool 官方黄金值校验
 
 ## 📦 安装
 
 ```bash
-go get github.com/hicode0101/go-utils
+go get github.com/hicode0101/go-utils/utils
 ```
 
 ```go
-import "github.com/hicode0101/go-utils"
+import "github.com/hicode0101/go-utils/utils"
 ```
 
 要求 **Go 1.25+**（使用了 `crypto/pbkdf2`、`math/rand/v2` 等较新标准库能力）。
@@ -54,7 +50,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/hicode0101/go-utils"
+	"github.com/hicode0101/go-utils/utils"
 )
 
 func main() {
@@ -94,6 +90,22 @@ func main() {
 }
 ```
 
+## 📁 项目结构
+
+```
+go-utils/
+├── go.mod       # module 根（保持在仓库根目录，勿移入子目录）
+├── README.md
+├── example/     # 可运行示例：go run ./example，打印 42 个工具类常用方法的实际输出
+└── utils/       # 工具库唯一包（package utils）：38 个实现文件 + 38 个测试文件
+    ├── utils.go      # 单例注册表（String、Crypto…）+ 构造器（NewSnowflake 等）
+    ├── str.go  str_test.go
+    └── ...
+```
+
+- 导入路径：`github.com/hicode0101/go-utils/utils`（包名 `utils`，调用写法 `utils.String.ToInt(...)` 与文档一致）
+- 上手方式：克隆后直接 `go run ./example`，边看输出边对照各示例源码。
+
 ## 📚 目录
 
 - [✨ 特性](#-特性)
@@ -113,7 +125,6 @@ func main() {
 - [🧩 集合与泛型辅助](#-集合与泛型辅助)
 - [🌍 更多能力](#-更多能力)
 - [🧪 测试](#-测试)
-- [⚖️ 与 hutool 的对照说明](#️-与-hutool-的对照说明)
 - [⚠️ 注意事项](#️-注意事项)
 
 ## ✨ 特性
@@ -164,7 +175,7 @@ s.SubBefore("abcba", "b", false) // "a"（首个分隔符前）
 s.SubAfter("abcba", "b", true)   // "a"（最后一个分隔符后）
 s.SubBetween("wx[b]yz", "[", "]") // "b"
 
-// ── 命名风格转换（hutool NamingCase）──
+// ── 命名风格转换──
 s.ToUnderlineCase("userName") // "user_name"
 s.ToCamelCase("user_name")    // "userName"
 s.ToPascalCase("user_name")   // "UserName"
@@ -199,7 +210,7 @@ n.Div(1, 3, 2)           // 0.33（精确除法+舍入）
 n.DecimalFormatMoney(355565.115) // "355,565.12"
 n.FormatPercent(0.5, 2)          // "50.00%"
 
-// 中文数字（对照 hutool NumberChineseFormatter）
+// 中文数字
 n.DigitToChinese(1024.53)        // "壹仟零贰拾肆元伍角叁分"
 n.ChineseToNumber("一百二十三")     // 123
 n.ChineseMoneyToNumber("壹佰贰拾元伍角") // 120.5
@@ -244,16 +255,16 @@ c.MD5("abc")               // "900150983cd24fb0d6963f7d28e17f72"
 c.SHA256("abc")            // 64 位小写 hex
 c.HmacSha256("key", "data") // 开放接口签名
 
-// ── 对称加密（PKCS7 填充，与 hutool/Java 互通）──
+// ── 对称加密 ──
 key, iv := []byte("0123456789abcdef"), []byte("fedcba9876543210")
 enc, _ := c.AesCbcEncrypt(data, key, iv)
 plain, _ := c.AesCbcDecrypt(enc, key, iv)
-c.AesEcbEncrypt(data, key)              // AES/ECB（hutool 默认模式）
+c.AesEcbEncrypt(data, key)              // AES/ECB
 c.DesEncrypt(data, []byte("8bytekey"))  // 单 DES
 c.Des3Encrypt(data, make([]byte, 24))   // 3DES
 c.Rc4Crypt(data, []byte("Key"))         // RC4 对称异或
 
-// ── 非对称（Base64 密钥与 hutool 生成的密钥互通）──
+// ── 非对称 ──
 priv, pub, _ := c.GenerateRsaKeyPair(2048)
 encRsa, _ := c.RsaEncrypt(data, pub)
 plain, _ = c.RsaDecrypt(encRsa, priv)
@@ -286,7 +297,7 @@ utils.Http.PostForm(url, map[string]string{"user": "u1"}, nil, 0)
 utils.Http.PostJson(url, `{"a":1}`, nil, 0)
 utils.Http.Download("https://example.com/a.zip", "a.zip", nil, 0)
 
-// ── 链式构建器（对照 hutool HttpRequest）──
+// ── 链式构建器 ──
 resp = utils.NewGetRequest("https://api.example.com/data").
 	Header("Authorization", "Bearer tk").
 	Query("page", "1").
@@ -305,7 +316,7 @@ utils.Http.UrlWithForm("http://a.com/api", map[string]string{"k": "v"})
 utils.Http.BuildBasicAuth("user", "pass") // "Basic dXNlcjpwYXNz"
 utils.Http.SniffContentType(`{"a":1}`)    // "application/json"
 
-// ── UA 解析（37 项浏览器识别表，对照 hutool UserAgentUtil）──
+// ── UA 解析 ──
 ua := utils.UserAgent.Parse(r.Header.Get("User-Agent"))
 if ua != nil {
 	ua.Browser        // "Chrome"
@@ -405,7 +416,7 @@ next := p.NextAfter(time.Now(), true)          // 下一次触发时间
 p2, _ := utils.NewCronPattern("0 0 2 L * ?")   // 每月最后一天 2 点
 p3, _ := utils.NewCronPattern("0 0 8 * * ?|0 0 20 * * ?") // 多表达式任一命中
 
-// ── 全局调度器（hutool CronUtil 风格）──
+// ── 全局调度器 ──
 id, _ := utils.Cron.Schedule("0/5 * * * * ?", func() {
 	// 每 5 秒执行；任务 panic 会被 recover 并回调监听器
 })
@@ -536,7 +547,7 @@ gcj := utils.Coord.Wgs84ToGcj02(116.404, 39.915)  // GPS → 高德/腾讯
 bd := utils.Coord.Gcj02ToBd09(gcj.Lng, gcj.Lat)   // → 百度
 wgs := utils.Coord.Gcj02ToWgs84(gcj.Lng, gcj.Lat) // 反纠偏
 
-// 正则工具（hutool ReUtil 风格）
+// 正则工具
 utils.Regex.FindGroup(`(\d+)-(\d+)`, "2024-06", 1)               // "2024"
 utils.Regex.ExtractMulti(`(\d+)年(\d+)月`, "2024年6月", "$1/$2") // "2024/6"
 utils.Regex.IsMatch(`\d+`, "123") // 全串匹配（Java matches 语义）
@@ -575,16 +586,7 @@ go test -cover ./... # 覆盖率
 |---|---|
 | 测试函数 | **448 个**（38 个测试文件） |
 | 语句覆盖率 | **94.9%**（无 0% 函数，每个导出方法均被测试触达） |
-| 黄金值来源 | hutool 官方测试用例（身份证/中文数字/Base58/Hashids/UA 等） |
 | RFC 向量 | RFC 4226/6238（OTP）、RFC 8439（ChaCha20）、RFC 6070（PBKDF2）、RFC 4231（HMAC） |
-| 互通验证 | AES/DES/RSA/ECDSA/Ed25519 与 JDK 实测双向互通；`JavaDefaultHash` 与 JVM 逐位一致 |
-
-## ⚖️ 与 hutool 的对照说明
-
-- **命名**：方法语义与命名大体对照 hutool 5.8.x（camelCase → PascalCase），如 `StrUtil.sub` → `String.Sub`、`NumberUtil.decimalFormatMoney` → `Number.DecimalFormatMoney`。
-- **语义忠实**：关键算法逐行对照源码移植——cron 表达式（含 `L`、`|`、反向环绕范围、5 字段隐含秒=0）、身份证 15/18 位与港澳台校验、ISO 7064 信用代码校验位、HTML4 全量 251 项实体表等。
-- **按需裁剪**：以下依赖 Java 生态或非标准库的能力未移植——SM2/SM3/SM4 国密、BCrypt/Argon2、反射系工具（ReflectUtil/ClassUtil 等）、XML DOM、GBK 编码、图片处理。
-- **Go 化改造**：Java 反射类转换（`Convert`/`BeanUtil`）以泛型函数替代；`Optional` 语义由指针 + `DefaultIfNil` 承担。
 
 ## ⚠️ 注意事项
 
@@ -600,6 +602,5 @@ go test -cover ./... # 覆盖率
 
 **如果对你有帮助，欢迎 Star ⭐**
 
-*参考实现：[Hutool](https://hutool.cn) —— 事宜无巨细，尽在 hutool*
 
 </div>
